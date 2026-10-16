@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bài tập 38 - Game kiểm tra tốc độ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,500;0,600;0,700;0,800;1,800&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#1c1f3d; --mute:#7a80a8; --indigo:#5b6cff; --violet:#9b5cff; --pink:#ff5fa2; --coral:#ff4d6d; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 22px;
+    font-family: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif; color: var(--ink); overflow-x: hidden;
+    background: #fbfbff;
+  }
+  /* nền: aurora pastel + lưới chấm */
+  .blob { position: fixed; border-radius: 50%; filter: blur(80px); opacity: .75; pointer-events: none; animation: drift 14s ease-in-out infinite alternate; }
+  .b1 { width: 520px; height: 520px; background: #cdd6ff; top: -160px; left: -120px; }
+  .b2 { width: 480px; height: 480px; background: #ffd3e8; bottom: -140px; right: -100px; animation-delay: -5s; }
+  .b3 { width: 380px; height: 380px; background: #c2f1ff; top: 40%; left: 55%; animation-delay: -9s; opacity: .55; }
+  @keyframes drift { to { transform: translate(60px, 40px) scale(1.15); } }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none;
+    background-image: radial-gradient(rgba(91,108,255,.16) 1.2px, transparent 1.4px); background-size: 26px 26px;
+    mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%); -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
+  }
+  .app { position: relative; z-index: 1; width: 636px; max-width: 100%; display: flex; flex-direction: column; gap: 16px; }
+
+  /* ===== Tiêu đề ===== */
+  header { text-align: center; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; padding: 5px 14px; border-radius: 99px; font-size: 11.5px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: var(--indigo); background: rgba(255,255,255,.85); border: 1px solid #e3e6ff; box-shadow: 0 4px 14px -4px rgba(91,108,255,.3); }
+  .badge i { width: 7px; height: 7px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 0 rgba(255,77,109,.6); animation: ping 1.6s infinite; }
+  @keyframes ping { to { box-shadow: 0 0 0 9px rgba(255,77,109,0); } }
+  h1 {
+    margin-top: 10px; font-size: 40px; line-height: 1.1; font-weight: 800; letter-spacing: -.5px;
+    background: linear-gradient(100deg, #1c1f3d 0%, var(--indigo) 40%, var(--violet) 65%, var(--pink) 100%); background-size: 200% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent; animation: flow 6s ease-in-out infinite alternate;
+  }
+  @keyframes flow { to { background-position: 100% 0; } }
+  header p { margin-top: 6px; color: var(--mute); font-weight: 500; }
+
+  /* ===== HUD ===== */
+  .hud-row { display: grid; grid-template-columns: 1fr 1.15fr 1.15fr; gap: 12px; }
+  .card {
+    --c: var(--indigo); --tint: #eceeff;
+    position: relative; display: flex; align-items: center; gap: 12px; padding: 14px 14px; border-radius: 22px;
+    background: rgba(255,255,255,.82); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,.95);
+    box-shadow: 0 14px 34px -14px rgba(70,80,200,.35), 0 2px 6px rgba(70,80,200,.07), inset 0 1px 0 #fff;
+    transition: transform .25s, box-shadow .3s;
+  }
+  .card:hover { transform: translateY(-3px); }
+  .card::after { content: ""; position: absolute; left: 22px; right: 22px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--c); opacity: .85; }
+  .card.gold { --c: #f59e0b; --tint: #fff2d6; } .card.red { --c: var(--coral); --tint: #ffe6ec; }
+  .card.danger { --c: #ff3b3b; --tint: #ffe3e3; animation: alarm .55s infinite alternate; }
+  @keyframes alarm { to { box-shadow: 0 0 0 5px rgba(255,59,59,.18), 0 14px 34px -14px rgba(255,59,59,.5); } }
+  .ico { position: relative; flex: none; width: 54px; height: 54px; border-radius: 50%; background: var(--tint); display: grid; place-items: center; }
+  .ico svg.ic { width: 30px; height: 30px; fill: none; stroke: var(--c); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ico .dot { fill: var(--c); stroke: none; }
+  .pring { position: absolute; inset: -3px; width: 60px; height: 60px; transform: rotate(-90deg); }
+  .pring circle { fill: none; stroke-width: 3.2; stroke-linecap: round; }
+  .pring .track { stroke: rgba(91,108,255,.14); }
+  .pring .prog { stroke: var(--c); stroke-dasharray: 100; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear, stroke .3s; }
+  .meta { min-width: 0; }
+  .meta small { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; color: var(--mute); }
+  .meta strong { display: block; font-size: 32px; line-height: 1.1; font-weight: 800; color: var(--c); font-variant-numeric: tabular-nums; }
+  .meta em { display: block; font-style: normal; font-size: 11.5px; color: var(--mute); font-weight: 600; }
+  .meta em b { color: var(--ink); }
+  .meta .hint { font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 1.3; margin-top: 3px; }
+  .meta .hint u { text-decoration: none; color: var(--coral); }
+  #score.bump { animation: bump .28s ease-out; }
+  @keyframes bump { 50% { transform: scale(1.3); } }
+
+  /* ===== Icon động ===== */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .tro { transform-box: fill-box; transform-origin: 50% 100%; animation: bob 2.2s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform: translateY(1px) rotate(-5deg); } 50% { transform: translateY(-2px) rotate(5deg); } }
+  .tw { transform-box: fill-box; transform-origin: center; animation: twinkle 1.6s ease-in-out infinite; }
+  .tw.t2 { animation-delay: .8s; }
+  @keyframes twinkle { 0%,100% { transform: scale(.2) rotate(0); opacity: 0; } 50% { transform: scale(1) rotate(45deg); opacity: 1; } }
+  .mm, .hm { transform-box: view-box; transform-origin: 24px 24px; }
+  .mm { animation: spin 4s linear infinite; } .hm { animation: spin 32s linear infinite; }
+  .tk { animation: tick 1s steps(2) infinite; } @keyframes tick { 50% { opacity: .3; } }
+  body.playing .mm { animation-duration: 1s; } body.playing .hm { animation-duration: 8s; }
+  .ring, .lock, .aimdot { transform-box: fill-box; transform-origin: center; }
+  .ring { animation: spin 6s linear infinite; }
+  .lock { animation: lockon 1.8s ease-in-out infinite; } @keyframes lockon { 0%,100% { transform: scale(1.14); } 50% { transform: scale(.8); } }
+  .aimdot { animation: beat 1s ease-in-out infinite; } @keyframes beat { 50% { transform: scale(.55); opacity: .6; } }
+
+  /* ===== Khung arena ===== */
+  .frame {
+    padding: 12px; border-radius: 32px; border: 2px solid transparent;
+    background: linear-gradient(#fff, #fff) padding-box, linear-gradient(135deg, #9fb0ff, #ffb8d6 55%, #9be7ff) border-box;
+    box-shadow: 0 30px 60px -22px rgba(70,80,200,.45), 0 8px 18px -8px rgba(70,80,200,.18);
+  }
+  #arena {
+    position: relative;               /* gốc định vị của mục tiêu */
+    width: 600px; height: 400px; margin: 0 auto; border-radius: 22px; overflow: hidden;
+    background: linear-gradient(#f4f6ff, #e6eaff 65%, #ffffff);
+    cursor: crosshair; user-select: none; -webkit-user-select: none;
+    box-shadow: inset 0 0 0 1px rgba(91,108,255,.12), inset 0 8px 30px rgba(91,108,255,.12);
+  }
+  #arena.locked { cursor: not-allowed; }
+  #bg { position: absolute; inset: 0; width: 600px; height: 400px; }
+
+  /* ===== Mục tiêu ===== */
+  #target {
+    position: absolute; width: 46px; height: 46px; border-radius: 50%; display: none; cursor: pointer; z-index: 3;
+    background: radial-gradient(circle at 34% 28%, #ffe3e8, #ff4d6d 46%, #cf1238);
+    box-shadow: 0 0 0 4px #fff, 0 10px 24px rgba(255,60,100,.55), 0 0 40px rgba(255,77,109,.35), inset 0 -5px 9px rgba(120,0,30,.3);
+    animation: pop .24s cubic-bezier(.2,1.7,.4,1);
+  }
+  #target::before, #target::after { content: ""; position: absolute; pointer-events: none; }
+  #target::before { inset: -11px; border: 2px dashed rgba(255,77,109,.55); border-radius: 50%; animation: spin 3s linear infinite; }
+  #target::after {
+    inset: -34px;
+    background: linear-gradient(rgba(255,77,109,.7), rgba(255,77,109,.7)) center / 1.5px 100% no-repeat, linear-gradient(rgba(255,77,109,.7), rgba(255,77,109,.7)) center / 100% 1.5px no-repeat;
+    -webkit-mask: radial-gradient(circle, transparent 30px, #000 31px, #000 52px, transparent 56px); mask: radial-gradient(circle, transparent 30px, #000 31px, #000 52px, transparent 56px);
+  }
+  #target svg { position: absolute; left: -22px; top: -22px; width: 90px; height: 90px; pointer-events: none; transform: rotate(-90deg); }
+  #target svg circle { fill: none; stroke: var(--coral); stroke-width: 3.5; stroke-linecap: round; stroke-dasharray: 100; animation: countdown 1s linear forwards; opacity: .9; }
+  @keyframes countdown { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 100; } }
+  @keyframes pop { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  /* hiệu ứng */
+  .burst { position: absolute; width: 46px; height: 46px; border-radius: 50%; border: 3px solid var(--coral); pointer-events: none; z-index: 2; animation: burst .5s ease-out forwards; }
+  @keyframes burst { to { transform: scale(3.4); opacity: 0; } }
+  .spark { position: absolute; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; z-index: 2; animation: fly .6s ease-out forwards; }
+  @keyframes fly { to { transform: translate(var(--dx), var(--dy)) scale(.2); opacity: 0; } }
+  .plus { position: absolute; font-size: 24px; font-weight: 800; color: var(--indigo); text-shadow: 0 2px 0 #fff, 0 0 12px #fff; pointer-events: none; z-index: 4; animation: rise .7s ease-out forwards; }
+  @keyframes rise { to { transform: translateY(-46px); opacity: 0; } }
+  .miss { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; border: 2px solid #9aa0c8; pointer-events: none; z-index: 2; animation: ripple .5s ease-out forwards; }
+  @keyframes ripple { from { transform: scale(.3); } to { transform: scale(2); opacity: 0; } }
+  .cf { position: absolute; top: -14px; width: 8px; height: 13px; border-radius: 2px; pointer-events: none; z-index: 7; animation: fall 2.6s ease-in forwards; }
+  @keyframes fall { to { transform: translate(var(--dx), 430px) rotate(var(--rot)); } }
+
+  /* lớp phủ */
+  .overlay { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  #idle { pointer-events: none; gap: 18px; }
+  #idle .demo { width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle at 34% 28%, #ffe3e8, #ff4d6d 46%, #cf1238); box-shadow: 0 0 0 4px #fff, 0 12px 26px rgba(255,60,100,.5); animation: float 2s ease-in-out infinite; }
+  @keyframes float { 50% { transform: translateY(-12px); } }
+  #idle span { padding: 9px 20px; border-radius: 99px; background: rgba(255,255,255,.88); backdrop-filter: blur(8px); font-weight: 700; color: var(--indigo); box-shadow: 0 8px 22px -8px rgba(91,108,255,.4); }
+  #result { display: none; background: rgba(255,255,255,.9); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); animation: fadeIn .4s; }
+  @keyframes fadeIn { from { opacity: 0; transform: scale(1.03); } }
+  #result h2 { font-size: 13px; font-weight: 800; letter-spacing: 4px; color: var(--mute); }
+  #result .big { font-size: 92px; line-height: 1; font-weight: 800; background: linear-gradient(135deg, var(--indigo), var(--violet) 50%, var(--pink)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #result .lbl { font-size: 12px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--mute); }
+  .stats { display: flex; gap: 10px; margin: 14px 0 12px; }
+  .stats div { min-width: 112px; padding: 9px 12px; border-radius: 16px; background: #fff; border: 1px solid #e8eaff; box-shadow: 0 8px 20px -10px rgba(91,108,255,.35); }
+  .stats b { display: block; font-size: 21px; font-weight: 800; color: var(--ink); }
+  .stats small { font-size: 10.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--mute); }
+  #rank { font-size: 19px; font-weight: 800; }
+  #record { margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--mute); }
+  #record.new { color: #fff; padding: 4px 14px; border-radius: 99px; background: linear-gradient(90deg, #f59e0b, var(--pink)); box-shadow: 0 6px 16px -4px rgba(245,158,11,.6); animation: bump .5s; }
+
+  .bar { height: 8px; border-radius: 99px; background: rgba(255,255,255,.9); border: 1px solid #e3e6ff; overflow: hidden; box-shadow: 0 6px 14px -8px rgba(91,108,255,.4); }
+  .bar i { display: block; height: 100%; width: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--indigo), var(--violet), var(--pink)); transition: width 1s linear; }
+  .bar i.low { background: linear-gradient(90deg, #ff3b3b, #ff9a3d); }
+
+  /* ===== Chân trang ===== */
+  footer { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-top: 2px; }
+  .mouse { width: 56px; height: 72px; justify-self: start; stroke: #9aa3ff; fill: none; stroke-width: 2; stroke-linecap: round; }
+  .mbody { transform-box: fill-box; transform-origin: center; animation: press 1.6s ease-in-out infinite; }
+  @keyframes press { 0%,55%,100% { transform: translateY(0); } 65% { transform: translateY(4px) scale(.96); } 78% { transform: translateY(0); } }
+  .rays { stroke: var(--indigo); animation: rays 1.6s ease-in-out infinite; }
+  @keyframes rays { 0%,58% { opacity: 0; } 68%,88% { opacity: 1; } 100% { opacity: 0; } }
+  .btn {
+    position: relative; overflow: hidden; border: 0; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 18px 46px; border-radius: 99px;
+    font: 800 16px "Be Vietnam Pro", sans-serif; letter-spacing: 1.2px; text-transform: uppercase; color: #fff;
+    background: linear-gradient(135deg, var(--indigo), var(--violet) 55%, var(--pink));
+    box-shadow: 0 18px 34px -10px rgba(120,90,255,.7), inset 0 1px 0 rgba(255,255,255,.5); transition: transform .15s, box-shadow .2s;
+  }
+  .btn::after { content: ""; position: absolute; top: 0; bottom: 0; width: 60px; left: -90px; background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent); transform: skewX(-20deg); animation: shine 3s infinite; }
+  @keyframes shine { 55%,100% { left: 120%; } }
+  .btn:hover:not(:disabled) { transform: translateY(-3px) scale(1.04); box-shadow: 0 24px 40px -10px rgba(120,90,255,.8), inset 0 1px 0 rgba(255,255,255,.5); }
+  .btn:active:not(:disabled) { transform: scale(.97); }
+  .btn:disabled { cursor: not-allowed; color: #9aa0c8; background: #e9ebf8; box-shadow: inset 0 0 0 1px #dfe2f5; }
+  .btn:disabled::after { display: none; }
+  .btn .tri { width: 0; height: 0; border-left: 15px solid currentColor; border-top: 9px solid transparent; border-bottom: 9px solid transparent; }
+  .snd { justify-self: end; width: 48px; height: 48px; border-radius: 50%; border: 1px solid #e3e6ff; background: rgba(255,255,255,.9); cursor: pointer; display: grid; place-items: center; box-shadow: 0 8px 20px -8px rgba(91,108,255,.4); transition: transform .15s; }
+  .snd:hover { transform: scale(1.1); }
+  .snd svg { width: 22px; height: 22px; stroke: var(--indigo); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .snd .x { display: none; stroke: var(--coral); } .snd.off .x { display: block; } .snd.off .w { display: none; }
+
+
+  /* ===== Thanh công cụ: chọn thời gian / đổi màu / người chơi ===== */
+  .tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .chips { display: flex; align-items: center; gap: 4px; padding: 5px 6px 5px 14px; border-radius: 99px; background: rgba(255,255,255,.88); border: 1px solid #e3e6ff; box-shadow: 0 8px 20px -10px rgba(91,108,255,.4); }
+  .clab { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--mute); margin-right: 4px; }
+  .chip { border: 0; cursor: pointer; padding: 7px 11px; border-radius: 99px; font: 700 13px "Be Vietnam Pro", sans-serif; background: transparent; color: var(--ink); transition: .15s; }
+  .chip:hover:not(:disabled) { background: #eceeff; }
+  .chip.on { background: linear-gradient(135deg, var(--indigo), var(--violet)); color: #fff; box-shadow: 0 6px 14px -4px rgba(120,90,255,.6); }
+  .chip:disabled, .chips input:disabled { opacity: .45; cursor: not-allowed; }
+  .chips input { width: 66px; margin-left: 2px; border: 1px solid #e3e6ff; border-radius: 99px; padding: 6px 8px; font: 700 13px "Be Vietnam Pro", sans-serif; color: var(--ink); text-align: center; outline: 0; background: #fff; }
+  .chips input:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(91,108,255,.18); }
+  .chips input.on { border-color: var(--indigo); background: #eceeff; }
+  .acts { display: flex; gap: 10px; }
+  .gbtn { display: flex; align-items: center; gap: 8px; border: 1px solid #e3e6ff; cursor: pointer; padding: 11px 18px; border-radius: 99px; font: 700 13.5px "Be Vietnam Pro", sans-serif; color: var(--ink); background: rgba(255,255,255,.92); box-shadow: 0 8px 20px -10px rgba(91,108,255,.4); transition: transform .15s, border-color .15s; }
+  .gbtn svg { width: 18px; height: 18px; stroke: var(--indigo); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .gbtn:hover:not(:disabled) { transform: translateY(-2px); border-color: #c3c9ff; }
+  .gbtn:active:not(:disabled) { transform: scale(.96); }
+  .gbtn:disabled { opacity: .45; cursor: not-allowed; }
+  #bg { transition: filter .7s ease; }
+
+  /* ===== Hộp thoại Người chơi ===== */
+  .modal { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(28,31,61,.35); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .modal.show { display: flex; animation: mfade .25s; }
+  @keyframes mfade { from { opacity: 0; } }
+  .mcard { width: 340px; max-width: 90vw; padding: 30px 26px 24px; border-radius: 30px; text-align: center; background: #fff; box-shadow: 0 40px 80px -20px rgba(70,80,200,.5); animation: pop .32s cubic-bezier(.2,1.5,.4,1); }
+  .avatar { width: 84px; height: 84px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; font-size: 36px; font-weight: 800; color: #fff; background: linear-gradient(135deg, var(--indigo), var(--violet), var(--pink)); box-shadow: 0 14px 30px -8px rgba(120,90,255,.6); }
+  .mcard h3 { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--mute); margin-bottom: 14px; }
+  .info { display: grid; gap: 8px; text-align: left; }
+  .info div { padding: 10px 14px; border-radius: 14px; background: #f5f6ff; }
+  .info small { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--mute); }
+  .info b { font-size: 16px; }
+  .info .id b { font-size: 24px; letter-spacing: 1.5px; color: var(--indigo); }
+  .hide { display: none !important; }
+  .pform { display: grid; gap: 10px; text-align: left; }
+  .pform label { font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--mute); }
+  .pform input { display: block; width: 100%; margin-top: 4px; padding: 11px 14px; border-radius: 14px; border: 1.5px solid #e3e6ff; background: #f8f9ff; font: 700 15px "Be Vietnam Pro", sans-serif; color: var(--ink); outline: 0; text-transform: none; letter-spacing: 0; transition: .15s; }
+  .pform input:focus { border-color: var(--indigo); background: #fff; box-shadow: 0 0 0 4px rgba(91,108,255,.15); }
+  .mrow { display: flex; gap: 10px; margin-top: 16px; }
+  .mghost { flex: 1; border: 1.5px solid #dfe2ff; cursor: pointer; padding: 13px; border-radius: 99px; font: 800 14px "Be Vietnam Pro", sans-serif; color: var(--indigo); background: #fff; transition: .15s; }
+  .mghost:hover { background: #eceeff; }
+  #pline { margin-top: 8px; font-size: 12.5px; font-weight: 600; color: var(--mute); }
+  .mclose { flex: 1; border: 0; cursor: pointer; padding: 13px; border-radius: 99px; font: 800 14px "Be Vietnam Pro", sans-serif; color: #fff; background: linear-gradient(135deg, var(--indigo), var(--violet) 55%, var(--pink)); box-shadow: 0 14px 26px -10px rgba(120,90,255,.7); }
+
+  @media (max-width: 700px) { .app { zoom: .56; } }
+</style>
+</head>
+<body>
+<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+
+<div class="app">
+  <header>
+    <span class="badge"><i></i>Bài tập 38 · Reflex Test</span>
+    <h1>Game kiểm tra tốc độ</h1>
+    <p>Click nhanh hơn - Phản xạ tốt hơn!</p>
+  </header>
+
+  <section class="hud-row">
+    <div class="card gold">
+      <div class="ico"><svg class="ic" viewBox="0 0 48 48"><g class="tro"><path d="M14 8h20v10a10 10 0 0 1-20 0z"/><path d="M14 12H6c0 7 3 11 9 12M34 12h8c0 7-3 11-9 12M24 28v8M16 40h16M19 36h10"/></g><path class="tw t1" d="M41 3v7M37.5 6.5h7"/><path class="tw t2" d="M6 28v5M3.5 30.5h5"/></svg></div>
+      <div class="meta"><small>Điểm số</small><strong id="score">0</strong><em>Kỷ lục <b id="bestTop">0</b></em></div>
+    </div>
+
+    <div class="card time" id="timeBox">
+      <div class="ico">
+        <svg class="pring" viewBox="0 0 60 60"><circle class="track" cx="30" cy="30" r="27" pathLength="100"/><circle class="prog" id="pr" cx="30" cy="30" r="27" pathLength="100"/></svg>
+        <svg class="ic" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18"/><path class="tk" d="M24 7v3M41 24h-3M24 41v-3M7 24h3"/><path class="hm" d="M24 24V15"/><path class="mm" d="M24 24V9"/><circle class="dot" cx="24" cy="24" r="2"/></svg>
+      </div>
+      <div class="meta"><small>Thời gian còn lại</small><strong id="time">30s</strong></div>
+    </div>
+
+    <div class="card red">
+      <div class="ico"><svg class="ic" viewBox="0 0 48 48"><circle class="ring" cx="24" cy="24" r="15" stroke-dasharray="7 4"/><g class="lock"><path d="M24 3v10M24 35v10M3 24h10M35 24h10"/></g><circle class="dot aimdot" cx="24" cy="24" r="5"/></svg></div>
+      <div class="meta"><small>Mục tiêu</small><div class="hint">Click vào hình tròn <u>đỏ</u>!</div></div>
+    </div>
+  </section>
+
+  <div class="frame">
+    <div id="arena" class="locked">
+      <canvas id="bg"></canvas>
+      <div id="target"><svg viewBox="0 0 90 90"><circle id="tring" cx="45" cy="45" r="40" pathLength="100"/></svg></div>
+      <div id="idle" class="overlay"><div class="demo"></div><span>Nhấn “Bắt đầu trò chơi” để bắt đầu</span></div>
+      <div id="result" class="overlay">
+        <h2>HẾT GIỜ</h2>
+        <div class="big" id="finalScore">0</div>
+        <div class="lbl">Tổng điểm của bạn</div>
+        <div class="stats">
+          <div><b id="stAcc">0%</b><small>Chính xác</small></div>
+          <div><b id="stMiss">0</b><small>Click trượt</small></div>
+          <div><b id="stRt">—</b><small>Phản xạ TB</small></div>
+        </div>
+        <div id="rank"></div><div id="record"></div><div id="pline"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bar"><i id="barFill"></i></div>
+
+  <div class="tools">
+    <div class="chips" id="chips">
+      <span class="clab">Thời gian</span>
+      <button class="chip" data-t="10">10s</button><button class="chip" data-t="20">20s</button><button class="chip on" data-t="30">30s</button><button class="chip" data-t="45">45s</button><button class="chip" data-t="60">60s</button>
+      <input id="customT" type="number" min="5" max="300" step="1" placeholder="Khác" title="Nhập số giây (5 - 300)">
+    </div>
+    <div class="acts">
+      <button class="gbtn" id="btnColor"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-.9 2-1.8 0-1.2-1-1.5-1-2.7 0-1 .8-1.5 1.8-1.5H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15.5" cy="7.5" r="1"/></svg>Đổi màu nền</button>
+      <button class="gbtn" id="btnPlayer"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>Người chơi</button>
+    </div>
+  </div>
+
+  <footer>
+    <svg class="mouse" viewBox="0 0 70 90"><g class="mbody"><rect x="16" y="22" width="34" height="56" rx="17" transform="rotate(-18 33 50)"/><path d="M27 34l8 -3" transform="rotate(-18 33 50)"/></g><path class="rays" d="M12 14l-6-6M24 8l-2-8M36 12l4-6"/></svg>
+    <button class="btn" id="btnStart"><span class="tri"></span><span id="btnText">Bắt đầu trò chơi</span></button>
+    <button class="snd" id="btnSnd" title="Bật/tắt âm thanh"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="w" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="x" d="M17 9l5 6M22 9l-5 6"/></svg></button>
+  </footer>
+</div>
+
+<div class="modal" id="modal">
+  <div class="mcard">
+    <div class="avatar" id="mAvatar">Q</div>
+    <h3 id="mTitle">Thông tin người chơi</h3>
+    <div class="info" id="pView">
+      <div><small>Họ và tên</small><b id="pName"></b></div>
+      <div class="id"><small>Mã sinh viên</small><b id="pId"></b></div>
+      <div><small>Trường</small><b id="pSchool"></b></div>
+    </div>
+    <div class="pform hide" id="pForm">
+      <label>Họ và tên<input id="inName" maxlength="40" placeholder="Ví dụ: Nguyễn Văn A" autocomplete="off"></label>
+      <label>Mã sinh viên<input id="inId" maxlength="20" placeholder="Nhập mã sinh viên" autocomplete="off"></label>
+      <label>Trường<input id="inSchool" maxlength="60" placeholder="Tên trường" autocomplete="off"></label>
+    </div>
+    <div class="mrow">
+      <button class="mghost" id="mEdit">Chỉnh sửa</button>
+      <button class="mclose" id="mClose">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ====== THÔNG TIN NGƯỜI CHƠI ====== */
+  const PLAYER = { name: '', id: '', school: 'Trường Đại học Văn Hiến' };   // người chơi tự nhập trên web, được lưu lại trong trình duyệt
+  try { Object.assign(PLAYER, JSON.parse(localStorage.getItem('bai38_player') || '{}')); } catch (e) {}
+  /* ============================================= */
+  let gameTime = 30;         // giây - người chơi tự chọn trước khi bấm Bắt đầu
+  const MOVE_EVERY = 1000;   // ms: không click kịp thì tự đổi vị trí
+  const $ = id => document.getElementById(id);
+  const arena = $('arena'), target = $('target'), tring = $('tring'), scoreEl = $('score'), timeEl = $('time'),
+        timeBox = $('timeBox'), btn = $('btnStart'), btnText = $('btnText'), idle = $('idle'), result = $('result'),
+        finalEl = $('finalScore'), barFill = $('barFill'), pr = $('pr'), bestTop = $('bestTop'), btnSnd = $('btnSnd');
+
+  let score = 0, misses = 0, reactions = [], shownAt = 0, timeLeft = gameTime, playing = false,
+      countdownId = null, moveId = null, audio = null, muted = false, cfTimer = null;
+
+  const bestKey = () => 'bai38_best_' + gameTime;
+  const getBest = () => { try { return +localStorage.getItem(bestKey()) || 0; } catch (e) { return 0; } };
+  bestTop.textContent = getBest();
+
+  /* ---------- Nền arena (canvas): trời pastel, mặt trời, thành phố, mặt sàn ---------- */
+  function drawScene() {
+    const c = $('bg'), W = 600, H = 400, hor = 262, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = W * dpr; c.height = H * dpr;
+    const x = c.getContext('2d'); x.scale(dpr, dpr);
+    const R = (a, b) => a + Math.random() * (b - a);
+
+    let g = x.createLinearGradient(0, 0, 0, hor);
+    g.addColorStop(0, '#f4f6ff'); g.addColorStop(.55, '#e4e9ff'); g.addColorStop(1, '#ffe4f0');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+
+    g = x.createRadialGradient(470, 92, 4, 470, 92, 190);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.3, 'rgba(255,232,210,.85)'); g.addColorStop(1, 'rgba(255,210,235,0)');
+    x.fillStyle = g; x.fillRect(240, -100, 360, 380);
+    x.fillStyle = '#fff'; x.shadowColor = '#ffb99a'; x.shadowBlur = 44; x.beginPath(); x.arc(470, 92, 32, 0, 7); x.fill(); x.shadowBlur = 0;
+
+    try { x.filter = 'blur(9px)'; } catch (e) {}
+    x.fillStyle = 'rgba(255,255,255,.9)';
+    for (let i = 0; i < 8; i++) { x.beginPath(); x.ellipse(R(0, W), R(26, 190), R(50, 110), R(8, 17), 0, 0, 7); x.fill(); }
+    x.filter = 'none';
+
+    const city = (col, minH, maxH, wMin, wMax, lit, win) => {
+      for (let px = -10; px < W;) {
+        const w = R(wMin, wMax), h = R(minH, maxH), r = 4;
+        x.fillStyle = col; x.beginPath(); x.roundRect ? x.roundRect(px, hor - h, w, h + 2, [r, r, 0, 0]) : x.rect(px, hor - h, w, h + 2); x.fill();
+        if (lit) for (let wy = hor - h + 8; wy < hor - 6; wy += 8)
+          for (let wx = px + 4; wx < px + w - 4; wx += 6) if (Math.random() < lit) { x.fillStyle = win; x.fillRect(wx, wy, 2.5, 3.5); }
+        px += w + R(1, 5);
+      }
+    };
+    city('#dbe0ff', 60, 140, 20, 38, 0, '');
+    city('#c6cdfa', 34, 100, 15, 32, .16, 'rgba(255,255,255,.85)');
+    city('#adb7f0', 14, 58, 20, 42, .28, 'rgba(255,255,255,.95)');
+
+    g = x.createLinearGradient(0, hor, 0, H);
+    g.addColorStop(0, '#eceeff'); g.addColorStop(1, '#ffffff');
+    x.fillStyle = g; x.fillRect(0, hor, W, H - hor);
+    x.save(); x.globalAlpha = .2; x.translate(0, hor * 2); x.scale(1, -1);
+    x.drawImage(c, 0, 0, W * dpr, hor * dpr, 0, 0, W, hor); x.restore();
+
+    x.strokeStyle = 'rgba(100,112,255,.2)'; x.lineWidth = 1;
+    for (let i = -14; i <= 14; i++) { x.beginPath(); x.moveTo(W / 2 + i * 14, hor); x.lineTo(W / 2 + i * 62, H); x.stroke(); }
+    for (let i = 1; i < 9; i++) { const y = hor + (H - hor) * Math.pow(i / 9, 1.8); x.beginPath(); x.moveTo(0, y); x.lineTo(W, y); x.stroke(); }
+
+    g = x.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, 'rgba(155,176,255,0)'); g.addColorStop(.5, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,170,210,0)');
+    x.fillStyle = g; x.shadowColor = '#fff'; x.shadowBlur = 14; x.fillRect(0, hor - 1, W, 2.5); x.shadowBlur = 0;
+
+    const cols = ['255,255,255', '255,190,215', '170,185,255'];     // bokeh
+    for (let i = 0; i < 22; i++) { x.fillStyle = `rgba(${cols[i % 3]},${R(.25, .6)})`; x.beginPath(); x.arc(R(0, W), R(10, H), R(3, 11), 0, 7); x.fill(); }
+  }
+  drawScene();
+
+  /* ---------- Âm thanh ---------- */
+  const SCALE = [523, 587, 659, 784, 880, 1046];
+  function beep(freq, dur, type = 'sine', vol = .07) {
+    if (!audio || muted) return;
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = type; o.frequency.value = freq; g.gain.value = vol;
+    g.gain.exponentialRampToValueAtTime(.0001, audio.currentTime + dur);
+    o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + dur);
+  }
+  btnSnd.addEventListener('click', () => { muted = !muted; btnSnd.classList.toggle('off', muted); });
+
+  /* ---------- Logic game ---------- */
+  function moveTarget() {                       // top/left ngẫu nhiên, luôn nằm trong #arena
+    const m = 34, size = target.offsetWidth || 46;
+    target.style.left = Math.floor(m + Math.random() * (arena.clientWidth - size - 2 * m)) + 'px';
+    target.style.top  = Math.floor(m + Math.random() * (arena.clientHeight - size - 2 * m)) + 'px';
+    target.style.animation = 'none'; tring.style.animation = 'none';
+    void target.offsetWidth;
+    target.style.animation = ''; tring.style.animation = '';
+    shownAt = performance.now();
+  }
+  function scheduleMove() { clearInterval(moveId); moveId = setInterval(moveTarget, MOVE_EVERY); }
+
+  function setTime(t) {
+    timeEl.textContent = t + 's';
+    barFill.style.width = (t / gameTime * 100) + '%';
+    pr.style.strokeDashoffset = (1 - t / gameTime) * 100;
+    const low = t <= 10 && playing;
+    timeBox.classList.toggle('danger', low); barFill.classList.toggle('low', low);
+  }
+
+  function startGame() {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    commitCustom();                              // chốt số giây người chơi đã nhập
+    score = 0; misses = 0; reactions = []; timeLeft = gameTime; playing = true;
+    lockTools(true);
+    document.body.classList.add('playing');
+    scoreEl.textContent = 0;
+    document.querySelectorAll('.cf').forEach(e => e.remove()); clearTimeout(cfTimer);
+    barFill.style.transition = pr.style.transition = 'none';
+    barFill.style.width = '100%'; pr.style.strokeDashoffset = 0; void barFill.offsetWidth;
+    barFill.style.transition = pr.style.transition = '';
+    setTime(timeLeft);
+    idle.style.display = 'none'; result.style.display = 'none';
+    arena.classList.remove('locked');
+    btn.disabled = true; btnText.textContent = 'Đang chơi...';
+    target.style.display = 'block'; moveTarget(); scheduleMove();
+    beep(523, .12); setTimeout(() => beep(784, .18), 120);
+
+    countdownId = setInterval(() => {
+      timeLeft--; setTime(timeLeft);
+      if (timeLeft > 0 && timeLeft <= 5) beep(440, .08, 'triangle', .05);
+      if (timeLeft <= 0) endGame();
+    }, 1000);
+  }
+
+  function countUp(el, to) {
+    const t0 = performance.now();
+    (function f(t) { const k = Math.min((t - t0) / 800, 1); el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(f); })(t0);
+  }
+
+  function confetti() {
+    const cols = ['#ff4d6d', '#f59e0b', '#5b6cff', '#22c7a9', '#9b5cff', '#ff5fa2'];
+    for (let i = 0; i < 46; i++) {
+      const el = document.createElement('div'); el.className = 'cf';
+      Object.assign(el.style, { left: Math.random() * 100 + '%', background: cols[i % cols.length], animationDelay: Math.random() * .5 + 's',
+        '--dx': (Math.random() * 120 - 60) + 'px', '--rot': (Math.random() * 720 - 360) + 'deg' });
+      arena.appendChild(el);
+    }
+    cfTimer = setTimeout(() => document.querySelectorAll('.cf').forEach(e => e.remove()), 3400);
+  }
+
+  function endGame() {
+    playing = false; document.body.classList.remove('playing');
+    clearInterval(countdownId); clearInterval(moveId);
+    target.style.display = 'none';
+    arena.classList.add('locked');               // khoá toàn bộ thao tác
+    lockTools(false);
+    setTime(0); timeBox.classList.remove('danger');
+
+    const best = getBest(), isNew = score > best, total = score + misses;
+    if (isNew) { try { localStorage.setItem(bestKey(), score); } catch (e) {} }
+    bestTop.textContent = Math.max(best, score);
+
+    countUp(finalEl, score);
+    $('stAcc').textContent = (total ? Math.round(score / total * 100) : 0) + '%';
+    $('stMiss').textContent = misses;
+    $('stRt').textContent = reactions.length ? Math.round(reactions.reduce((a, b) => a + b, 0) / reactions.length) + 'ms' : '—';
+    $('rank').textContent = score >= 30 ? '🏆 Phản xạ thần sầu!' : score >= 20 ? '🔥 Cực nhanh, cực đỉnh!' : score >= 10 ? '👍 Khá ổn, thử lại nào!' : '🐢 Cần luyện thêm phản xạ!';
+    const rec = $('record'); rec.className = isNew && score > 0 ? 'new' : '';
+    rec.textContent = isNew && score > 0 ? '★ KỶ LỤC MỚI ★' : 'Kỷ lục: ' + Math.max(best, score);
+    const who = [PLAYER.name, PLAYER.id].filter(x => x && x.trim());
+    $('pline').textContent = who.length ? 'Người chơi: ' + who.join(' · ') : '';
+    result.style.display = 'flex';
+    if (isNew && score > 0) confetti();
+    btn.disabled = false; btnText.textContent = 'Chơi lại';
+    beep(659, .16); setTimeout(() => beep(523, .18), 150); setTimeout(() => beep(392, .3), 300);
+  }
+
+  function hitEffect() {
+    const cx = target.offsetLeft + 23, cy = target.offsetTop + 23, cols = ['#ff4d6d', '#f59e0b', '#5b6cff', '#22c7a9'];
+    const add = (cls, css, txt) => { const el = document.createElement('div'); el.className = cls; Object.assign(el.style, css); if (txt) el.textContent = txt; arena.appendChild(el); setTimeout(() => el.remove(), 750); };
+    add('burst', { left: cx - 23 + 'px', top: cy - 23 + 'px' });
+    add('plus', { left: cx + 12 + 'px', top: cy - 38 + 'px' }, '+1');
+    for (let i = 0; i < 12; i++) {
+      const a = Math.PI * 2 * i / 12 + Math.random() * .4, d = 40 + Math.random() * 38;
+      add('spark', { left: cx - 4 + 'px', top: cy - 4 + 'px', background: cols[i % 4], '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d + 'px' });
+    }
+  }
+
+  target.addEventListener('mousedown', e => {   // click trúng mục tiêu
+    e.stopPropagation();
+    if (!playing) return;
+    reactions.push(performance.now() - shownAt);
+    score++; scoreEl.textContent = score;
+    scoreEl.classList.remove('bump'); void scoreEl.offsetWidth; scoreEl.classList.add('bump');
+    hitEffect();
+    beep(SCALE[score % 6] * (score % 12 < 6 ? 1 : 1.5), .12);
+    moveTarget();                                // đổi vị trí ngay lập tức
+    scheduleMove();                              // reset nhịp 1 giây
+  });
+
+  arena.addEventListener('mousedown', e => {     // click trượt
+    if (!playing) return;
+    misses++;
+    const r = arena.getBoundingClientRect(), k = arena.offsetWidth / r.width;
+    const el = document.createElement('div'); el.className = 'miss';
+    el.style.left = (e.clientX - r.left) * k + 'px'; el.style.top = (e.clientY - r.top) * k + 'px';
+    arena.appendChild(el); setTimeout(() => el.remove(), 520);
+    beep(180, .1, 'triangle', .05);
+  });
+
+  /* ---------- Chọn thời gian chạy ngược ---------- */
+  const chips = $('chips'), customT = $('customT'), btnColor = $('btnColor'), btnPlayer = $('btnPlayer'), modal = $('modal');
+
+  function setGameTime(t) {
+    gameTime = t;
+    chips.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', +c.dataset.t === t));
+    customT.classList.toggle('on', ![10, 20, 30, 45, 60].includes(t));
+    timeEl.textContent = t + 's';
+    barFill.style.width = '100%'; pr.style.strokeDashoffset = 0;
+    bestTop.textContent = getBest();
+  }
+  function commitCustom() {                      // đọc ô nhập tuỳ chọn (5 - 300 giây)
+    if (customT.value === '') return;
+    let v = Math.round(+customT.value);
+    if (!isFinite(v)) v = gameTime;
+    v = Math.min(300, Math.max(5, v));
+    customT.value = [10, 20, 30, 45, 60].includes(v) ? '' : v;
+    setGameTime(v);
+  }
+  chips.addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b || playing) return;
+    customT.value = ''; setGameTime(+b.dataset.t);
+  });
+  customT.addEventListener('change', commitCustom);
+  customT.addEventListener('keydown', e => { if (e.key === 'Enter') { commitCustom(); customT.blur(); } });
+  function lockTools(on) {
+    chips.querySelectorAll('.chip').forEach(c => c.disabled = on);
+    customT.disabled = on; btnPlayer.disabled = on;
+  }
+
+  /* ---------- Đổi màu nền ngẫu nhiên ---------- */
+  let hue = 0;
+  btnColor.addEventListener('click', () => {
+    hue = (hue + 50 + Math.floor(Math.random() * 260)) % 360;       // luôn lệch rõ rệt so với lần trước
+    const sat = (0.9 + Math.random() * 0.5).toFixed(2);
+    $('bg').style.filter = `hue-rotate(${hue}deg) saturate(${sat})`;
+  });
+
+  /* ---------- Hộp thoại Người chơi ---------- */
+  const pView = $('pView'), pForm = $('pForm'), mEdit = $('mEdit'), mClose = $('mClose'),
+        inName = $('inName'), inId = $('inId'), inSchool = $('inSchool');
+  let editing = false;
+  const pv = v => (v && v.trim()) ? v.trim() : 'Chưa nhập';
+
+  function renderPlayer() {
+    $('pName').textContent = pv(PLAYER.name);
+    $('pId').textContent = pv(PLAYER.id);
+    $('pSchool').textContent = pv(PLAYER.school);
+    const w = (PLAYER.name || '').trim().split(/\s+/).filter(Boolean);
+    $('mAvatar').textContent = w.length ? w[w.length - 1].charAt(0).toUpperCase() : '?';
+  }
+  function setEdit(on) {
+    editing = on;
+    pView.classList.toggle('hide', on); pForm.classList.toggle('hide', !on);
+    mEdit.textContent = on ? 'Lưu' : 'Chỉnh sửa'; mClose.textContent = on ? 'Hủy' : 'Đóng';
+    $('mTitle').textContent = on ? 'Nhập thông tin' : 'Thông tin người chơi';
+    if (on) { inName.value = PLAYER.name || ''; inId.value = PLAYER.id || ''; inSchool.value = PLAYER.school || ''; setTimeout(() => (PLAYER.name ? inId : inName).focus(), 60); }
+  }
+  function savePlayer() {
+    PLAYER.name = inName.value.trim(); PLAYER.id = inId.value.trim(); PLAYER.school = inSchool.value.trim();
+    try { localStorage.setItem('bai38_player', JSON.stringify(PLAYER)); } catch (e) {}
+    renderPlayer(); setEdit(false);
+  }
+  const closeModal = () => { modal.classList.remove('show'); setEdit(false); };
+
+  btnPlayer.addEventListener('click', () => { renderPlayer(); setEdit(!PLAYER.id); modal.classList.add('show'); });  // chưa có MSSV thì mở thẳng form nhập
+  mEdit.addEventListener('click', () => editing ? savePlayer() : setEdit(true));
+  mClose.addEventListener('click', () => editing ? setEdit(false) : closeModal());
+  [inName, inId, inSchool].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') savePlayer(); }));
+  renderPlayer();
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  btn.addEventListener('click', startGame);
+</script>
+</body>
+</html>
